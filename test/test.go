@@ -15,19 +15,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	a := c.GetSectionNames()
-	b, err := c.GetSection(a[2])
-	if err != nil {
-		fmt.Printf("There was a problem: %s\n", err)
-		os.Exit(1)
-	}
-	b.Print()
-	fmt.Println()
+	c.Print()
 
-	test, err := b.GetBool("option")
-	if err != nil {
-		fmt.Printf("There was a problem: %s\n", err)
-		os.Exit(1)
-	}
-	fmt.Println(test)
 }
