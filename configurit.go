@@ -14,78 +14,111 @@ const (
 )
 
 func Version() string {
-	return fmt.Sprintf("%s %s%s\n", NAME, VERSION, TAG)
+	return fmt.Sprintf("%s %s%s", NAME, VERSION, TAG)
 }
 
-type Conf struct {
-	Sections []section
-	Name     string
+type conf struct {
+	Config map[string]map[string]string
+	Name   string
 }
 
-func CreateFrom(path string) (*Conf, error) {
-	c := new(Conf)
-	c.Sections = []section{createSection(""), createSection("comment")}
-	e := c.ReadConfig(path)
+func Open(path string) (*conf, error) {
+	c := new(conf)
+	c.Config = make(map[string]map[string]string)
+	c.makeSection("")
+	c.Name = path
+	e := c.readConfig(path)
 	return c, e
 }
 
-func (c *Conf) ReadConfig(path string) error {
+func (c *conf) makeSection(key string) {
+	c.Config[key] = make(map[string]string)
+}
+
+func (c *conf) readConfig(path string) error {
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
 		return fmt.Errorf("Configurit: %s", err)
 	}
-	fullText := make([]string, 0)
 	scanner := bufio.NewScanner(file)
-	i := 0
-	curSection := 0
+	curSection := ""
 	for scanner.Scan() {
-		i++
 		text := strings.TrimSpace(scanner.Text())
 		if text != "" {
 			if text[:1] == "#" {
-				c.Sections[1].add(i, text)
+				continue
 			} else if text[:1] == ";" {
-				if curSection == 0 {
-					curSection = 2
-				} else {
-					curSection++
+				curSection = strings.ToLower(strings.TrimSpace(text[1:]))
+				if curSection != "" {
+					c.makeSection(curSection)
 				}
-				c.Sections = append(c.Sections, createSection(strings.TrimSpace(text[1:])))
 			} else {
-				c.Sections[curSection].add(i, text)
+				key, value, err := keyandValue(text)
+				if err != nil {
+					return err
+				}
+				c.Config[curSection][key] = value
 			}
-			fullText = append(fullText, text)
 		}
 	}
-	c.Name = path
-	if scanner.Err() == nil {
-		return nil
+	if scanner.Err() != nil {
+		return fmt.Errorf("Configurit: %s", scanner.Err())
 	}
-	return fmt.Errorf("Configurit: %s", scanner.Err())
+	return nil
 }
 
-func (c Conf) GetSection(name string) (*section, error) {
-	for i := range c.Sections {
-		if c.Sections[i].Name == name {
-			return &c.Sections[i], nil
-		}
+func keyandValue(line string) (key string, value string, err error) {
+	t := strings.Split(strings.TrimSpace(line), "=")
+	if len(t) <= 1 {
+		return "", "", fmt.Errorf("Configurit: Got empty key/value from line: %s", line)
 	}
-	return nil, fmt.Errorf("Configurit: No Section called %s\n", name)
+
+	key = strings.ToLower(strings.TrimSpace(t[0]))
+
+	if len(t) > 2 {
+		value = strings.Join(t[1:], "=")
+	} else {
+		value = strings.TrimSpace(t[1])
+	}
+
+	return key, value, nil
 }
 
-func (c Conf) GetSectionNames() []string {
-	s := make([]string, 0)
-	for i := range c.Sections {
-		s = append(s, c.Sections[i].Name)
-	}
-	return s
-}
-
-func (c *Conf) Print() {
+func (c *conf) Print() {
 	fmt.Println()
-	for i := range c.Sections {
-		fmt.Println()
-		c.Sections[i].Print()
+	for i := range c.Config {
+		fmt.Println("Section: ", i)
+		for j := range c.Config[i] {
+			fmt.Printf("  Key: %s | Value: %s\n", j, c.Config[i][j])
+		}
 	}
+}
+
+func (c conf) get(section string, key string) (string, error) {
+	if a, ok := c.Config[strings.ToLower(section)][strings.ToLower(key)]; ok != false {
+		return a, fmt.Errorf("Configurit: Unable to find value for key %s in section %s", key, section)
+	} else {
+		return a, nil
+	}
+}
+
+func (c conf) GetInt(section string, key string) (int, error) {
+	return 0, nil
+}
+
+func (c conf) GetFloat32(section string, key string) (float32, error) {
+	return 0, nil
+}
+
+func (c conf) GetFloat64(section string, key string) (float64, error) {
+	return 0, nil
+}
+
+func (c conf) GetString(section string, key string) (string, error) {
+	return "", nil
+}
+
+func (c conf) GetBool(section string, key string) (bool, error) {
+	return false, nil
 }
