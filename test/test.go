@@ -16,5 +16,5 @@ func main() {
 	}
 
 	c.Print()
-	fmt.Println(c.Config["Aeridya"]["UseSSL"])
+	fmt.Println(c.GetBool("Aeridya", "UseSSL"))
 }
